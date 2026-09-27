@@ -37,10 +37,22 @@ CREATE TABLE IF NOT EXISTS products (
 	min_stock INTEGER DEFAULT 1
 );
 
+CREATE TABLE IF NOT EXISTS employees (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	name TEXT NOT NULL,
+	cpf_cnpj TEXT UNIQUE,
+	phone TEXT,
+	email TEXT UNIQUE,
+	role TEXT NOT NULL DEFAULT 'FUNCIONARIO',
+	is_active INTEGER NOT NULL DEFAULT 1 CHECK(is_active IN (0, 1)),
+	created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS service_orders (
 	id INTEGER PRIMARY KEY AUTOINCREMENT,
 	client_id INTEGER NOT NULL,
 	vehicle_id INTEGER NOT NULL,
+	employee_id INTEGER,
 	status TEXT CHECK(status IN ('ORCAMENTO', 'APROVADO', 'EM_ANDAMENTO', 'AGUARDANDO_PECA', 'CONCLUIDO', 'CANCELADO')) DEFAULT 'ORCAMENTO',
 	problem_description TEXT,
 	notes TEXT,
@@ -50,7 +62,8 @@ CREATE TABLE IF NOT EXISTS service_orders (
 	created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (client_id) REFERENCES clients(id),
-	FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
+	FOREIGN KEY (vehicle_id) REFERENCES vehicles(id),
+	FOREIGN KEY (employee_id) REFERENCES employees(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS os_items (
@@ -80,6 +93,15 @@ export function initializeDatabase() {
   database = new Database(databasePath)
   database.pragma('foreign_keys = ON')
   database.exec(schema)
+
+  const serviceOrderColumns = database.prepare('PRAGMA table_info(service_orders)').all()
+  const hasEmployeeColumn = serviceOrderColumns.some(({ name }) => name === 'employee_id')
+
+  if (!hasEmployeeColumn) {
+    database.exec(
+      'ALTER TABLE service_orders ADD COLUMN employee_id INTEGER REFERENCES employees(id) ON DELETE SET NULL'
+    )
+  }
 
   const tables = database
     .prepare(
