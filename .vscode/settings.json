@@ -7,5 +7,10 @@
   },
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+  "github.copilot.chat.commitMessageGeneration.instructions": [
+    {
+      "text": "Always write commit messages in English, including the subject and body."
+    }
+  ]
 }
