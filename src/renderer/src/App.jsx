@@ -7,6 +7,7 @@ import {
   MenuUnfoldOutlined
 } from '@ant-design/icons'
 import { Button, Layout, Menu, Typography } from 'antd'
+import Clients from './components/Clients'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
@@ -74,6 +75,7 @@ function App() {
 
         <Content style={{ margin: 24 }}>
           <Title level={2}>{currentPage}</Title>
+          {currentPage === 'clientes' && <Clients />}
         </Content>
       </Layout>
     </Layout>
