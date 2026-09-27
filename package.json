@@ -21,7 +21,8 @@
     "@ant-design/icons": "^6.3.4",
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
-    "antd": "^6.6.5"
+    "antd": "^6.6.5",
+    "better-sqlite3": "^13.0.3"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config": "^2.1.0",
