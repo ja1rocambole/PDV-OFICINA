@@ -10,6 +10,7 @@ import {
 import { Button, Layout, Menu, Typography } from 'antd'
 import Clients from './components/Clients'
 import Vehicles from './components/Vehicles'
+import Products from './components/Products'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
@@ -84,6 +85,7 @@ function App() {
           <Title level={2}>{currentPage}</Title>
           {currentPage === 'clientes' && <Clients />}
           {currentPage === 'veiculos' && <Vehicles />}
+          {currentPage === 'produtos' && <Products />}
         </Content>
       </Layout>
     </Layout>

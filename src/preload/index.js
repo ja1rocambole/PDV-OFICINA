@@ -13,6 +13,12 @@ const api = {
     create: (vehicle) => electronAPI.ipcRenderer.invoke('vehicles:create', vehicle),
     update: (id, vehicle) => electronAPI.ipcRenderer.invoke('vehicles:update', id, vehicle),
     delete: (id) => electronAPI.ipcRenderer.invoke('vehicles:delete', id)
+  },
+  products: {
+    list: () => electronAPI.ipcRenderer.invoke('products:list'),
+    create: (product) => electronAPI.ipcRenderer.invoke('products:create', product),
+    update: (id, product) => electronAPI.ipcRenderer.invoke('products:update', id, product),
+    delete: (id) => electronAPI.ipcRenderer.invoke('products:delete', id)
   }
 }
 
