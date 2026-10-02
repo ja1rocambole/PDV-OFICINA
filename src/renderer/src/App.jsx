@@ -3,11 +3,13 @@ import {
   AppstoreOutlined,
   ShoppingCartOutlined,
   UserOutlined,
+  CarOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined
 } from '@ant-design/icons'
 import { Button, Layout, Menu, Typography } from 'antd'
 import Clients from './components/Clients'
+import Vehicles from './components/Vehicles'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
@@ -31,6 +33,11 @@ function App() {
       key: 'clientes',
       icon: <UserOutlined />,
       label: 'Clientes'
+    },
+    {
+      key: 'veiculos',
+      icon: <CarOutlined />,
+      label: 'Veículos'
     }
   ]
 
@@ -76,6 +83,7 @@ function App() {
         <Content style={{ margin: 24 }}>
           <Title level={2}>{currentPage}</Title>
           {currentPage === 'clientes' && <Clients />}
+          {currentPage === 'veiculos' && <Vehicles />}
         </Content>
       </Layout>
     </Layout>
