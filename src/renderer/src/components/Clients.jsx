@@ -28,7 +28,7 @@ function Clients() {
   }
 
   useEffect(() => {
-    loadClients()
+    void Promise.resolve().then(loadClients)
   }, [])
 
   function openCreateModal() {

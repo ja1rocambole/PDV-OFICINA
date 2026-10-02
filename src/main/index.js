@@ -6,6 +6,10 @@ import { initializeDatabase } from './database'
 import { registerClientsIpc } from './ipc/clients.ipc'
 import { registerVehiclesIpc } from './ipc/vehicles.ipc'
 import { registerProductsIpc } from './ipc/products.ipc'
+import { registerEmployeesIpc } from './ipc/employees.ipc'
+import { registerServiceOrdersIpc } from './ipc/service-orders.ipc'
+import { registerOsItemsIpc } from './ipc/os-items.ipc'
+import { registerOsServicesIpc } from './ipc/os-services.ipc'
 
 function createWindow() {
   // Create the browser window.
@@ -47,6 +51,10 @@ app.whenReady().then(() => {
   registerClientsIpc()
   registerVehiclesIpc()
   registerProductsIpc()
+  registerEmployeesIpc()
+  registerServiceOrdersIpc()
+  registerOsItemsIpc()
+  registerOsServicesIpc()
 
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')

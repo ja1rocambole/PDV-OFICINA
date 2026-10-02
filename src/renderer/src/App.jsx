@@ -4,6 +4,8 @@ import {
   ShoppingCartOutlined,
   UserOutlined,
   CarOutlined,
+  TeamOutlined,
+  FileTextOutlined,
   MenuFoldOutlined,
   MenuUnfoldOutlined
 } from '@ant-design/icons'
@@ -11,6 +13,8 @@ import { Button, Layout, Menu, Typography } from 'antd'
 import Clients from './components/Clients'
 import Vehicles from './components/Vehicles'
 import Products from './components/Products'
+import Employees from './components/Employees'
+import ServiceOrders from './components/ServiceOrders'
 
 const { Header, Sider, Content } = Layout
 const { Title } = Typography
@@ -39,6 +43,16 @@ function App() {
       key: 'veiculos',
       icon: <CarOutlined />,
       label: 'Veículos'
+    },
+    {
+      key: 'funcionarios',
+      icon: <TeamOutlined />,
+      label: 'Funcionários'
+    },
+    {
+      key: 'ordens',
+      icon: <FileTextOutlined />,
+      label: 'Ordens de serviço'
     }
   ]
 
@@ -86,6 +100,8 @@ function App() {
           {currentPage === 'clientes' && <Clients />}
           {currentPage === 'veiculos' && <Vehicles />}
           {currentPage === 'produtos' && <Products />}
+          {currentPage === 'funcionarios' && <Employees />}
+          {currentPage === 'ordens' && <ServiceOrders />}
         </Content>
       </Layout>
     </Layout>
