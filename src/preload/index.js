@@ -1,7 +1,31 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-const api = {}
+const invoke =
+  (channel) =>
+  (...args) =>
+    ipcRenderer.invoke(channel, ...args)
+
+const crud = (prefix) => ({
+  list: invoke(`${prefix}:list`),
+  get: invoke(`${prefix}:get`),
+  create: invoke(`${prefix}:create`),
+  update: invoke(`${prefix}:update`),
+  remove: invoke(`${prefix}:remove`)
+})
+
+const api = {
+  clientes: crud('clientes'),
+  veiculos: crud('veiculos'),
+  funcionarios: crud('funcionarios'),
+  produtos: crud('produtos'),
+  ordensServico: { ...crud('os'), updateStatus: invoke('os:updateStatus') },
+  pdv: {
+    finalizarVenda: invoke('pdv:finalizarVenda'),
+    listVendas: invoke('pdv:listVendas')
+  },
+  dashboard: { resumo: invoke('dashboard:resumo') }
+}
 
 if (process.contextIsolated) {
   try {
