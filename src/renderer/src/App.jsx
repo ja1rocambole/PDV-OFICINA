@@ -4,6 +4,7 @@ import {
   CarOutlined,
   DashboardOutlined,
   HomeOutlined,
+  AppstoreOutlined,
   ShoppingCartOutlined,
   TeamOutlined,
   ToolOutlined,
@@ -17,6 +18,7 @@ import Dashboard from './pages/Dashboard'
 import Clientes from './pages/Clientes'
 import Veiculos from './pages/Veiculos'
 import Funcionarios from './pages/Funcionarios'
+import Produtos from './pages/Produtos'
 import OrdensServico from './pages/OrdensServico'
 import PDV from './pages/PDV'
 
@@ -29,6 +31,7 @@ const routes = [
   { path: '/cadastros/clientes', title: 'Clientes', element: <Clientes /> },
   { path: '/cadastros/veiculos', title: 'Veículos', element: <Veiculos /> },
   { path: '/cadastros/funcionarios', title: 'Funcionários', element: <Funcionarios /> },
+  { path: '/cadastros/produtos', title: 'Produtos e Serviços', element: <Produtos /> },
   { path: '/funcionamento/ordens-servico', title: 'Ordem de Serviços', element: <OrdensServico /> },
   { path: '/funcionamento/pdv', title: 'PDV', element: <PDV /> }
 ]
@@ -47,7 +50,8 @@ const menuItems = [
     children: [
       { key: '/cadastros/clientes', label: 'Clientes', icon: <UserOutlined /> },
       { key: '/cadastros/veiculos', label: 'Veículos', icon: <CarOutlined /> },
-      { key: '/cadastros/funcionarios', label: 'Funcionários', icon: <TeamOutlined /> }
+      { key: '/cadastros/funcionarios', label: 'Funcionários', icon: <TeamOutlined /> },
+      { key: '/cadastros/produtos', label: 'Produtos e Serviços', icon: <AppstoreOutlined /> }
     ]
   },
   {
