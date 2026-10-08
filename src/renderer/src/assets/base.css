@@ -33,6 +33,10 @@ body {
   display: none;
 }
 
+.pdv-print {
+  display: none;
+}
+
 @media print {
   @page {
     size: A4 portrait;
@@ -56,7 +60,9 @@ body {
   }
 
   .os-print,
-  .os-print * {
+  .os-print *,
+  .pdv-print,
+  .pdv-print * {
     visibility: visible !important;
   }
 
@@ -71,6 +77,51 @@ body {
     font:
       10pt Arial,
       sans-serif;
+  }
+
+  .pdv-print {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block !important;
+    width: 72mm;
+    color: #111;
+    background: #fff;
+    font:
+      9pt Arial,
+      sans-serif;
+  }
+
+  .pdv-print-header {
+    display: flex;
+    justify-content: space-between;
+    padding-bottom: 3mm;
+    border-bottom: 1px dashed #555;
+  }
+
+  .pdv-print p {
+    margin: 2mm 0;
+  }
+
+  .pdv-print table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .pdv-print th,
+  .pdv-print td {
+    padding: 1.5mm 0;
+    border-bottom: 1px solid #ccc;
+    text-align: left;
+  }
+
+  .pdv-print th:last-child,
+  .pdv-print td:last-child {
+    text-align: right;
+  }
+
+  .pdv-print-total {
+    text-align: right;
   }
 
   .os-print-header {

@@ -49,7 +49,26 @@ export const pdvRepository = {
     })
     return tx()
   },
-  listVendas() {
-    return getDb().prepare('SELECT * FROM vendas_pdv ORDER BY id DESC LIMIT 100').all()
+  listVendas({ page = 1, pageSize = 8 } = {}) {
+    const db = getDb()
+    const pagina = Math.max(1, Math.floor(Number(page) || 1))
+    const tamanho = Math.min(100, Math.max(1, Math.floor(Number(pageSize) || 8)))
+    const total = db.prepare('SELECT COUNT(*) AS total FROM vendas_pdv').get().total
+    const vendas = db
+      .prepare(
+        `SELECT v.*, f.nome AS funcionario_nome
+         FROM vendas_pdv v
+         LEFT JOIN funcionarios f ON f.id = v.funcionario_id
+         ORDER BY v.id DESC LIMIT ? OFFSET ?`
+      )
+      .all(tamanho, (pagina - 1) * tamanho)
+    const itens = db.prepare(
+      `SELECT id, descricao, quantidade, valor_unitario, valor_total
+       FROM venda_itens WHERE venda_id = ? ORDER BY id`
+    )
+    return {
+      vendas: vendas.map((venda) => ({ ...venda, itens: itens.all(venda.id) })),
+      total
+    }
   }
 }

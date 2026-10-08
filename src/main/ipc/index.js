@@ -39,6 +39,6 @@ export function registerIpcHandlers() {
   registerCrud('os', ordensServicoRepository)
   handle('os:updateStatus', (id, status) => ordensServicoRepository.updateStatus(id, status))
   handle('pdv:finalizarVenda', (venda) => pdvRepository.finalizarVenda(venda))
-  handle('pdv:listVendas', () => pdvRepository.listVendas())
+  handle('pdv:listVendas', (options) => pdvRepository.listVendas(options))
   handle('dashboard:resumo', () => dashboardRepository.resumo())
 }

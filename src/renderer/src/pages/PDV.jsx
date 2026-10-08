@@ -3,6 +3,7 @@ import {
   Button,
   Card,
   Col,
+  Modal,
   Empty,
   InputNumber,
   Input,
@@ -14,7 +15,8 @@ import {
   Typography,
   message
 } from 'antd'
-import { DeleteOutlined } from '@ant-design/icons'
+import { DeleteOutlined, HistoryOutlined, PrinterOutlined } from '@ant-design/icons'
+import dayjs from 'dayjs'
 import PageHeader from '../components/PageHeader'
 import { call } from '../utils/api'
 import { formatCurrency, round2 } from '../utils/format'
@@ -25,6 +27,8 @@ const pagamentos = [
   { value: 'cartao_debito', label: 'Cartão de débito' },
   { value: 'cartao_credito', label: 'Cartão de crédito' }
 ]
+const rotuloPagamento = (value) =>
+  pagamentos.find((pagamento) => pagamento.value === value)?.label || value
 
 export default function PDV() {
   const [produtos, setProdutos] = useState([])
@@ -35,6 +39,13 @@ export default function PDV() {
   const [pagamento, setPagamento] = useState('dinheiro')
   const [funcionarioId, setFuncionarioId] = useState()
   const [saving, setSaving] = useState(false)
+  const [vendas, setVendas] = useState([])
+  const [totalVendas, setTotalVendas] = useState(0)
+  const [paginaHistorico, setPaginaHistorico] = useState(1)
+  const [tamanhoPaginaHistorico, setTamanhoPaginaHistorico] = useState(8)
+  const [historicoAberto, setHistoricoAberto] = useState(false)
+  const [historicoLoading, setHistoricoLoading] = useState(false)
+  const [cupom, setCupom] = useState(null)
 
   const load = useCallback(async () => {
     const [p, f] = await Promise.all([
@@ -53,6 +64,33 @@ export default function PDV() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load()
   }, [load])
+
+  const loadVendas = useCallback(
+    async (page = paginaHistorico, pageSize = tamanhoPaginaHistorico) => {
+      const data = await call(window.api.pdv.listVendas({ page, pageSize }))
+      if (data) {
+        setVendas(data.vendas)
+        setTotalVendas(data.total)
+      }
+      return data
+    },
+    [paginaHistorico, tamanhoPaginaHistorico]
+  )
+
+  const paginarHistorico = async (page, pageSize) => {
+    setPaginaHistorico(page)
+    setTamanhoPaginaHistorico(pageSize)
+    setHistoricoLoading(true)
+    await loadVendas(page, pageSize)
+    setHistoricoLoading(false)
+  }
+
+  const abrirHistorico = async () => {
+    setHistoricoAberto(true)
+    setHistoricoLoading(true)
+    await loadVendas()
+    setHistoricoLoading(false)
+  }
 
   const filtrados = produtos.filter((p) =>
     p.descricao.toLowerCase().includes(search.trim().toLowerCase())
@@ -121,6 +159,9 @@ export default function PDV() {
       setCarrinho([])
       setDesconto(0)
       load()
+      setPaginaHistorico(1)
+      const vendasAtualizadas = await loadVendas(1, tamanhoPaginaHistorico)
+      setCupom(vendasAtualizadas?.vendas.find((venda) => venda.id === res.id) || null)
     }
   }
 
@@ -159,7 +200,14 @@ export default function PDV() {
 
   return (
     <>
-      <PageHeader title="PDV" />
+      <PageHeader
+        title="PDV"
+        extra={
+          <Button icon={<HistoryOutlined />} onClick={abrirHistorico}>
+            Histórico
+          </Button>
+        }
+      />
       <Row gutter={16}>
         <Col xs={24} lg={14}>
           <Input.Search
@@ -236,6 +284,133 @@ export default function PDV() {
           </Card>
         </Col>
       </Row>
+      <Modal
+        title="Histórico de vendas"
+        open={historicoAberto}
+        onCancel={() => setHistoricoAberto(false)}
+        footer={null}
+        width={800}
+      >
+        <Table
+          rowKey="id"
+          size="small"
+          loading={historicoLoading}
+          dataSource={vendas}
+          pagination={{
+            current: paginaHistorico,
+            pageSize: tamanhoPaginaHistorico,
+            total: totalVendas,
+            showSizeChanger: true,
+            pageSizeOptions: [8, 20, 50],
+            onChange: paginarHistorico
+          }}
+          scroll={{ x: 640 }}
+          columns={[
+            { title: 'Venda', dataIndex: 'id', render: (id) => `#${id}` },
+            {
+              title: 'Data',
+              dataIndex: 'data',
+              render: (data) => (data ? dayjs(data).format('DD/MM/YYYY HH:mm') : '-')
+            },
+            { title: 'Funcionário', dataIndex: 'funcionario_nome', render: (nome) => nome || '-' },
+            {
+              title: 'Pagamento',
+              dataIndex: 'forma_pagamento',
+              render: rotuloPagamento
+            },
+            { title: 'Total', dataIndex: 'total', render: formatCurrency },
+            {
+              title: '',
+              key: 'cupom',
+              render: (_, venda) => (
+                <Button
+                  type="link"
+                  icon={<PrinterOutlined />}
+                  onClick={() => {
+                    setHistoricoAberto(false)
+                    setCupom(venda)
+                  }}
+                >
+                  Cupom
+                </Button>
+              )
+            }
+          ]}
+        />
+      </Modal>
+      <Modal
+        title={`Cupom da venda #${cupom?.id ?? ''}`}
+        open={!!cupom}
+        onCancel={() => setCupom(null)}
+        footer={
+          <Space>
+            <Button onClick={() => setCupom(null)}>Fechar</Button>
+            <Button type="primary" icon={<PrinterOutlined />} onClick={() => window.print()}>
+              Imprimir cupom
+            </Button>
+          </Space>
+        }
+      >
+        {cupom && (
+          <div>
+            <Typography.Title level={5}>PDV · Venda #{cupom.id}</Typography.Title>
+            <Typography.Paragraph>
+              Data: {dayjs(cupom.data).format('DD/MM/YYYY HH:mm')}
+              <br />
+              Funcionário: {cupom.funcionario_nome || '-'}
+              <br />
+              Pagamento: {rotuloPagamento(cupom.forma_pagamento)}
+            </Typography.Paragraph>
+            <Table
+              rowKey="id"
+              size="small"
+              pagination={false}
+              dataSource={cupom.itens}
+              columns={[
+                { title: 'Item', dataIndex: 'descricao' },
+                { title: 'Qtd.', dataIndex: 'quantidade', width: 60 },
+                { title: 'Total', dataIndex: 'valor_total', render: formatCurrency, width: 100 }
+              ]}
+            />
+            <Typography.Paragraph style={{ marginTop: 16, textAlign: 'right' }}>
+              Desconto: {formatCurrency(cupom.desconto)}
+              <br />
+              <Typography.Text strong>Total: {formatCurrency(cupom.total)}</Typography.Text>
+            </Typography.Paragraph>
+          </div>
+        )}
+      </Modal>
+      {cupom && (
+        <div className="pdv-print">
+          <header className="pdv-print-header">
+            <strong>PDV · Cupom de venda</strong>
+            <span>#{cupom.id}</span>
+          </header>
+          <p>Data: {dayjs(cupom.data).format('DD/MM/YYYY HH:mm')}</p>
+          <p>Funcionário: {cupom.funcionario_nome || '-'}</p>
+          <p>Pagamento: {rotuloPagamento(cupom.forma_pagamento)}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Item</th>
+                <th>Qtd.</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {cupom.itens.map((item) => (
+                <tr key={item.id}>
+                  <td>{item.descricao}</td>
+                  <td>{item.quantidade}</td>
+                  <td>{formatCurrency(item.valor_total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="pdv-print-total">Desconto: {formatCurrency(cupom.desconto)}</p>
+          <p className="pdv-print-total">Total: {formatCurrency(cupom.total)}</p>
+        </div>
+      )}
     </>
   )
 }
