@@ -63,6 +63,7 @@ CREATE TABLE IF NOT EXISTS os_itens (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   os_id INTEGER NOT NULL REFERENCES ordens_servico(id) ON DELETE CASCADE,
   produto_id INTEGER REFERENCES produtos(id),
+  tipo TEXT CHECK (tipo IN ('peca', 'servico')),
   descricao TEXT NOT NULL,
   quantidade REAL NOT NULL,
   valor_unitario REAL NOT NULL,
@@ -163,6 +164,15 @@ export function getDb() {
       if (!osColumns.has(name)) {
         db.exec(`ALTER TABLE ordens_servico ADD COLUMN ${name} ${type}`)
       }
+    }
+    const itemColumns = new Set(
+      db
+        .prepare('PRAGMA table_info(os_itens)')
+        .all()
+        .map((column) => column.name)
+    )
+    if (!itemColumns.has('tipo')) {
+      db.exec('ALTER TABLE os_itens ADD COLUMN tipo TEXT')
     }
     seed(db)
   }

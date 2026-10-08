@@ -135,7 +135,8 @@ export default function OrdensServico() {
       form.setFieldsValue(full)
       const itensCarregados = full.itens.map((i, idx) => ({
         ...i,
-        tipo: catalogoProdutos.find((p) => p.id === i.produto_id)?.tipo || 'peca',
+        tipo: catalogoProdutos.find((p) => p.id === i.produto_id)?.tipo || i.tipo || 'peca',
+        avulso: !i.produto_id,
         key: `${i.id}-${idx}`
       }))
       setItens(itensCarregados)
@@ -174,6 +175,19 @@ export default function OrdensServico() {
         valor_unitario: 0
       }
     ])
+  const addAdHocItem = (tipo) =>
+    setItens((l) => [
+      ...l,
+      {
+        key: `a-${Date.now()}-${l.length}`,
+        tipo,
+        avulso: true,
+        produto_id: null,
+        descricao: '',
+        quantidade: 1,
+        valor_unitario: 0
+      }
+    ])
   const patchItem = (key, patch) =>
     setItens((l) => l.map((i) => (i.key === key ? { ...i, ...patch } : i)))
   const patchDesconto = (categoria, patch) =>
@@ -196,6 +210,7 @@ export default function OrdensServico() {
     const p = produtos.find((x) => x.id === produtoId)
     patchItem(key, {
       tipo: p.tipo,
+      avulso: false,
       produto_id: produtoId,
       descricao: p.descricao,
       valor_unitario: p.preco_venda
@@ -208,7 +223,7 @@ export default function OrdensServico() {
     if (!full) return
     const itensImpressao = full.itens.map((item) => ({
       ...item,
-      tipo: catalogoProdutos.find((p) => p.id === item.produto_id)?.tipo || 'peca'
+      tipo: catalogoProdutos.find((p) => p.id === item.produto_id)?.tipo || item.tipo || 'peca'
     }))
     const descontosImpressao = discountsFromOrder(full, itensImpressao)
     const subtotaisImpressao = categorySubtotals(itensImpressao)
@@ -248,8 +263,8 @@ export default function OrdensServico() {
 
   const save = async () => {
     const values = await form.validateFields()
-    if (!itens.length || itens.some((i) => !i.produto_id)) {
-      message.error('Adicione ao menos um produto ou serviço e selecione todos os itens')
+    if (!itens.length || itens.some((i) => !i.tipo || (!i.produto_id && !i.descricao.trim()))) {
+      message.error('Selecione os itens do catálogo ou informe a descrição dos itens avulsos')
       return
     }
     setSaving(true)
@@ -338,21 +353,28 @@ export default function OrdensServico() {
   const itemColumns = (tipo) => [
     {
       title: tipo === 'peca' ? 'Produto / Peça' : 'Serviço',
-      render: (_, i) => (
-        <Select
-          showSearch={{ optionFilterProp: 'label' }}
-          style={{ width: '100%' }}
-          placeholder="Selecione"
-          value={i.produto_id}
-          onChange={(v) => selectProduto(i.key, v)}
-          options={produtos
-            .filter((p) => p.tipo === tipo)
-            .map((p) => ({
-              value: p.id,
-              label: p.descricao
-            }))}
-        />
-      )
+      render: (_, i) =>
+        i.avulso ? (
+          <Input
+            value={i.descricao}
+            placeholder={tipo === 'peca' ? 'Descrição da peça' : 'Descrição do serviço'}
+            onChange={(event) => patchItem(i.key, { descricao: event.target.value })}
+          />
+        ) : (
+          <Select
+            showSearch={{ optionFilterProp: 'label' }}
+            style={{ width: '100%' }}
+            placeholder="Selecione"
+            value={i.produto_id}
+            onChange={(v) => selectProduto(i.key, v)}
+            options={produtos
+              .filter((p) => p.tipo === tipo)
+              .map((p) => ({
+                value: p.id,
+                label: p.descricao
+              }))}
+          />
+        )
     },
     {
       title: 'Qtd.',
@@ -511,9 +533,19 @@ export default function OrdensServico() {
           columns={itemColumns('peca')}
           dataSource={itens.filter((item) => item.tipo === 'peca')}
           footer={() => (
-            <Button type="dashed" icon={<PlusOutlined />} onClick={() => addItem('peca')} block>
-              Adicionar produto ou peça
-            </Button>
+            <Space style={{ display: 'flex', width: '100%' }}>
+              <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                onClick={() => addItem('peca')}
+                style={{ flex: 1 }}
+              >
+                Adicionar produto ou peça
+              </Button>
+              <Button icon={<PlusOutlined />} onClick={() => addAdHocItem('peca')}>
+                Avulso
+              </Button>
+            </Space>
           )}
         />
         <Divider>Serviços</Divider>
@@ -524,9 +556,19 @@ export default function OrdensServico() {
           columns={itemColumns('servico')}
           dataSource={itens.filter((item) => item.tipo === 'servico')}
           footer={() => (
-            <Button type="dashed" icon={<PlusOutlined />} onClick={() => addItem('servico')} block>
-              Adicionar serviço
-            </Button>
+            <Space style={{ display: 'flex', width: '100%' }}>
+              <Button
+                type="dashed"
+                icon={<PlusOutlined />}
+                onClick={() => addItem('servico')}
+                style={{ flex: 1 }}
+              >
+                Adicionar serviço
+              </Button>
+              <Button icon={<PlusOutlined />} onClick={() => addAdHocItem('servico')}>
+                Avulso
+              </Button>
+            </Space>
           )}
         />
         <Divider>Descontos por categoria</Divider>

@@ -21,6 +21,7 @@ function calcItens(itens = []) {
     const valor_unitario = Number(i.valor_unitario) || 0
     return {
       produto_id: i.produto_id ?? null,
+      tipo: i.tipo === 'servico' ? 'servico' : i.tipo === 'peca' ? 'peca' : null,
       descricao: i.descricao ?? '',
       quantidade,
       valor_unitario,
@@ -88,10 +89,10 @@ function saveItens(os_id, itens) {
   const db = getDb()
   db.prepare('DELETE FROM os_itens WHERE os_id = ?').run(os_id)
   const ins = db.prepare(
-    'INSERT INTO os_itens (os_id, produto_id, descricao, quantidade, valor_unitario, valor_total) VALUES (?, ?, ?, ?, ?, ?)'
+    'INSERT INTO os_itens (os_id, produto_id, tipo, descricao, quantidade, valor_unitario, valor_total) VALUES (?, ?, ?, ?, ?, ?, ?)'
   )
   for (const i of itens) {
-    ins.run(os_id, i.produto_id, i.descricao, i.quantidade, i.valor_unitario, i.valor_total)
+    ins.run(os_id, i.produto_id, i.tipo, i.descricao, i.quantidade, i.valor_unitario, i.valor_total)
   }
 }
 
