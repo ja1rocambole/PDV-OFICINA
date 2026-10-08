@@ -30,6 +30,53 @@ import { call } from '../utils/api'
 import { formatCurrency, formatDate, round2 } from '../utils/format'
 
 const statusOptions = Object.entries(STATUS_OS).map(([value, { label }]) => ({ value, label }))
+const discountOptions = [
+  { value: 'valor', label: 'Valor fixo' },
+  { value: 'percentual', label: 'Percentual' }
+]
+
+function categorySubtotals(items) {
+  return items.reduce(
+    (subtotals, item) => {
+      const category = item.tipo === 'servico' ? 'servico' : 'peca'
+      subtotals[category] += round2((item.quantidade || 0) * (item.valor_unitario || 0))
+      return subtotals
+    },
+    { peca: 0, servico: 0 }
+  )
+}
+
+function amountAfterDiscount(subtotal, discount) {
+  const value = Math.max(0, Number(discount.valor) || 0)
+  const amount = discount.tipo === 'percentual' ? (subtotal * Math.min(value, 100)) / 100 : value
+  return Math.min(subtotal, round2(amount))
+}
+
+function discountsFromOrder(order, items) {
+  if (order.desconto_pecas != null || order.desconto_servicos != null) {
+    return {
+      peca: {
+        valor: Number(order.desconto_pecas) || 0,
+        tipo: order.desconto_pecas_tipo || 'valor'
+      },
+      servico: {
+        valor: Number(order.desconto_servicos) || 0,
+        tipo: order.desconto_servicos_tipo || 'valor'
+      }
+    }
+  }
+
+  const subtotals = categorySubtotals(items)
+  const totalSubtotal = subtotals.peca + subtotals.servico
+  const oldDiscount = Math.min(totalSubtotal, Number(order.desconto) || 0)
+  const pecasValor = totalSubtotal
+    ? Math.min(subtotals.peca, round2((oldDiscount * subtotals.peca) / totalSubtotal))
+    : 0
+  return {
+    peca: { valor: pecasValor, tipo: 'valor' },
+    servico: { valor: Math.min(subtotals.servico, oldDiscount - pecasValor), tipo: 'valor' }
+  }
+}
 
 export default function OrdensServico() {
   const [rows, setRows] = useState([])
@@ -43,7 +90,10 @@ export default function OrdensServico() {
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState(null)
   const [itens, setItens] = useState([])
-  const [desconto, setDesconto] = useState(0)
+  const [descontos, setDescontos] = useState({
+    peca: { valor: 0, tipo: 'valor' },
+    servico: { valor: 0, tipo: 'valor' }
+  })
   const [saving, setSaving] = useState(false)
   const [printOs, setPrintOs] = useState(null)
   const [form] = Form.useForm()
@@ -83,28 +133,32 @@ export default function OrdensServico() {
       if (!full) return
       setEditing(full)
       form.setFieldsValue(full)
-      setItens(
-        full.itens.map((i, idx) => ({
-          ...i,
-          tipo: catalogoProdutos.find((p) => p.id === i.produto_id)?.tipo || 'peca',
-          key: `${i.id}-${idx}`
-        }))
-      )
-      setDesconto(full.desconto || 0)
+      const itensCarregados = full.itens.map((i, idx) => ({
+        ...i,
+        tipo: catalogoProdutos.find((p) => p.id === i.produto_id)?.tipo || 'peca',
+        key: `${i.id}-${idx}`
+      }))
+      setItens(itensCarregados)
+      setDescontos(discountsFromOrder(full, itensCarregados))
     } else {
       setEditing(null)
       setItens([])
-      setDesconto(0)
+      setDescontos({
+        peca: { valor: 0, tipo: 'valor' },
+        servico: { valor: 0, tipo: 'valor' }
+      })
       form.setFieldsValue({ status: 'aberta' })
     }
     setOpen(true)
   }
 
-  const subtotal = useMemo(
-    () => itens.reduce((s, i) => s + round2((i.quantidade || 0) * (i.valor_unitario || 0)), 0),
-    [itens]
-  )
-  const total = Math.max(0, round2(subtotal - (desconto || 0)))
+  const subtotais = useMemo(() => categorySubtotals(itens), [itens])
+  const descontosAplicados = {
+    peca: amountAfterDiscount(subtotais.peca, descontos.peca),
+    servico: amountAfterDiscount(subtotais.servico, descontos.servico)
+  }
+  const subtotal = subtotais.peca + subtotais.servico
+  const total = Math.max(0, round2(subtotal - descontosAplicados.peca - descontosAplicados.servico))
 
   const veiculosDoCliente = veiculos.filter((v) => v.cliente_id === clienteId)
 
@@ -122,6 +176,22 @@ export default function OrdensServico() {
     ])
   const patchItem = (key, patch) =>
     setItens((l) => l.map((i) => (i.key === key ? { ...i, ...patch } : i)))
+  const patchDesconto = (categoria, patch) =>
+    setDescontos((current) => ({
+      ...current,
+      [categoria]: { ...current[categoria], ...patch }
+    }))
+  const changeDiscountMode = (categoria, tipo) => {
+    const subtotalCategoria = subtotais[categoria]
+    const descontoAtual = amountAfterDiscount(subtotalCategoria, descontos[categoria])
+    const valor =
+      tipo === 'percentual'
+        ? subtotalCategoria
+          ? round2((descontoAtual / subtotalCategoria) * 100)
+          : 0
+        : descontoAtual
+    patchDesconto(categoria, { tipo, valor })
+  }
   const selectProduto = (key, produtoId) => {
     const p = produtos.find((x) => x.id === produtoId)
     patchItem(key, {
@@ -136,12 +206,35 @@ export default function OrdensServico() {
     const catalogoProdutos = await loadCadastros()
     const full = await call(window.api.ordensServico.get(record.id))
     if (!full) return
+    const itensImpressao = full.itens.map((item) => ({
+      ...item,
+      tipo: catalogoProdutos.find((p) => p.id === item.produto_id)?.tipo || 'peca'
+    }))
+    const descontosImpressao = discountsFromOrder(full, itensImpressao)
+    const subtotaisImpressao = categorySubtotals(itensImpressao)
     setPrintOs({
       ...full,
-      itens: full.itens.map((item) => ({
-        ...item,
-        tipo: catalogoProdutos.find((p) => p.id === item.produto_id)?.tipo || 'peca'
-      }))
+      itens: itensImpressao,
+      descontos_impressao: descontosImpressao,
+      desconto_pecas_aplicado: amountAfterDiscount(
+        subtotaisImpressao.peca,
+        descontosImpressao.peca
+      ),
+      desconto_servicos_aplicado: amountAfterDiscount(
+        subtotaisImpressao.servico,
+        descontosImpressao.servico
+      ),
+      subtotal_pecas_impressao: subtotaisImpressao.peca,
+      subtotal_servicos_impressao: subtotaisImpressao.servico,
+      total_liquido_impressao: Math.max(
+        0,
+        round2(
+          subtotaisImpressao.peca +
+            subtotaisImpressao.servico -
+            amountAfterDiscount(subtotaisImpressao.peca, descontosImpressao.peca) -
+            amountAfterDiscount(subtotaisImpressao.servico, descontosImpressao.servico)
+        )
+      )
     })
   }
 
@@ -160,7 +253,15 @@ export default function OrdensServico() {
       return
     }
     setSaving(true)
-    const payload = { ...values, desconto: desconto || 0, itens }
+    const payload = {
+      ...values,
+      desconto: descontosAplicados.peca + descontosAplicados.servico,
+      desconto_pecas: descontos.peca.valor,
+      desconto_pecas_tipo: descontos.peca.tipo,
+      desconto_servicos: descontos.servico.valor,
+      desconto_servicos_tipo: descontos.servico.tipo,
+      itens
+    }
     const res = editing
       ? await call(window.api.ordensServico.update(editing.id, payload))
       : await call(window.api.ordensServico.create(payload))
@@ -428,17 +529,55 @@ export default function OrdensServico() {
             </Button>
           )}
         />
+        <Divider>Descontos por categoria</Divider>
+        <Row gutter={[16, 12]}>
+          {[
+            ['peca', 'Produtos e peças'],
+            ['servico', 'Serviços']
+          ].map(([categoria, label]) => (
+            <Col span={12} key={categoria}>
+              <Typography.Text strong>{label}</Typography.Text>
+              <Space wrap style={{ width: '100%', marginTop: 8 }}>
+                <Select
+                  value={descontos[categoria].tipo}
+                  options={discountOptions}
+                  style={{ width: 130 }}
+                  onChange={(tipo) => changeDiscountMode(categoria, tipo)}
+                />
+                <InputNumber
+                  min={0}
+                  max={descontos[categoria].tipo === 'percentual' ? 100 : subtotais[categoria]}
+                  precision={2}
+                  value={descontos[categoria].valor}
+                  style={{ width: 130 }}
+                  onChange={(valor) => patchDesconto(categoria, { valor: valor || 0 })}
+                />
+                <Typography.Text>
+                  {descontos[categoria].tipo === 'percentual' ? '%' : 'R$'}
+                </Typography.Text>
+              </Space>
+              <div>
+                <Typography.Text type="secondary">
+                  Desconto aplicado: {formatCurrency(descontosAplicados[categoria])}
+                </Typography.Text>
+              </div>
+            </Col>
+          ))}
+        </Row>
         <Space direction="vertical" align="end" style={{ width: '100%', marginTop: 16 }}>
-          <Typography.Text>Subtotal: {formatCurrency(subtotal)}</Typography.Text>
-          <Space>
-            Desconto (R$):
-            <InputNumber
-              min={0}
-              precision={2}
-              value={desconto}
-              onChange={(v) => setDesconto(v || 0)}
-            />
-          </Space>
+          <Typography.Text>
+            Subtotal de produtos e peças: {formatCurrency(subtotais.peca)}
+          </Typography.Text>
+          <Typography.Text>
+            Subtotal de serviços: {formatCurrency(subtotais.servico)}
+          </Typography.Text>
+          <Typography.Text>Subtotal geral: {formatCurrency(subtotal)}</Typography.Text>
+          <Typography.Text>
+            Desconto em produtos e peças: -{formatCurrency(descontosAplicados.peca)}
+          </Typography.Text>
+          <Typography.Text>
+            Desconto em serviços: -{formatCurrency(descontosAplicados.servico)}
+          </Typography.Text>
           <Typography.Title level={4} style={{ margin: 0 }}>
             Total: {formatCurrency(total)}
           </Typography.Title>
@@ -532,10 +671,19 @@ export default function OrdensServico() {
               {formatCurrency(printOs.itens.reduce((sum, item) => sum + item.valor_total, 0))}
             </div>
             <div>
-              <strong>Desconto:</strong> {formatCurrency(printOs.desconto)}
+              <strong>Desconto em produtos e peças:</strong> -
+              {formatCurrency(printOs.desconto_pecas_aplicado)}
+              {printOs.descontos_impressao.peca.tipo === 'percentual' &&
+                ` (${printOs.descontos_impressao.peca.valor}%)`}
+            </div>
+            <div>
+              <strong>Desconto em serviços:</strong> -
+              {formatCurrency(printOs.desconto_servicos_aplicado)}
+              {printOs.descontos_impressao.servico.tipo === 'percentual' &&
+                ` (${printOs.descontos_impressao.servico.valor}%)`}
             </div>
             <div className="os-print-total">
-              <strong>Total:</strong> {formatCurrency(printOs.total)}
+              <strong>Total líquido:</strong> {formatCurrency(printOs.total_liquido_impressao)}
             </div>
           </section>
           <footer className="os-print-signatures">

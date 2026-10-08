@@ -52,6 +52,10 @@ CREATE TABLE IF NOT EXISTS ordens_servico (
   data_fechamento TEXT,
   status TEXT NOT NULL DEFAULT 'aberta' CHECK (status IN ('aberta', 'em_andamento', 'aguardando_pecas', 'concluida', 'entregue', 'cancelada')),
   desconto REAL NOT NULL DEFAULT 0,
+  desconto_pecas REAL,
+  desconto_pecas_tipo TEXT,
+  desconto_servicos REAL,
+  desconto_servicos_tipo TEXT,
   total REAL NOT NULL DEFAULT 0,
   observacoes TEXT
 );
@@ -144,6 +148,22 @@ export function getDb() {
     db.pragma('journal_mode = WAL')
     db.pragma('foreign_keys = ON')
     db.exec(SCHEMA)
+    const osColumns = new Set(
+      db
+        .prepare('PRAGMA table_info(ordens_servico)')
+        .all()
+        .map((column) => column.name)
+    )
+    for (const [name, type] of [
+      ['desconto_pecas', 'REAL'],
+      ['desconto_pecas_tipo', 'TEXT'],
+      ['desconto_servicos', 'REAL'],
+      ['desconto_servicos_tipo', 'TEXT']
+    ]) {
+      if (!osColumns.has(name)) {
+        db.exec(`ALTER TABLE ordens_servico ADD COLUMN ${name} ${type}`)
+      }
+    }
     seed(db)
   }
   return db
