@@ -24,6 +24,10 @@ const api = {
     finalizarVenda: invoke('pdv:finalizarVenda'),
     listVendas: invoke('pdv:listVendas')
   },
+  empresa: {
+    get: invoke('empresa:get'),
+    save: invoke('empresa:save')
+  },
   dashboard: { resumo: invoke('dashboard:resumo') }
 }
 

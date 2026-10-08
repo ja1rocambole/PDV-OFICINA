@@ -6,6 +6,7 @@ import { produtosRepository } from '../db/repositories/produtos'
 import { ordensServicoRepository } from '../db/repositories/ordensServico'
 import { pdvRepository } from '../db/repositories/pdv'
 import { dashboardRepository } from '../db/repositories/dashboard'
+import { empresaRepository } from '../db/repositories/empresa'
 
 function handle(channel, fn) {
   ipcMain.handle(channel, (_event, ...args) => {
@@ -40,5 +41,7 @@ export function registerIpcHandlers() {
   handle('os:updateStatus', (id, status) => ordensServicoRepository.updateStatus(id, status))
   handle('pdv:finalizarVenda', (venda) => pdvRepository.finalizarVenda(venda))
   handle('pdv:listVendas', (options) => pdvRepository.listVendas(options))
+  handle('empresa:get', () => empresaRepository.get())
+  handle('empresa:save', (data) => empresaRepository.save(data))
   handle('dashboard:resumo', () => dashboardRepository.resumo())
 }

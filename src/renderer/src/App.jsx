@@ -6,6 +6,7 @@ import {
   HomeOutlined,
   AppstoreOutlined,
   ShoppingCartOutlined,
+  SettingOutlined,
   TeamOutlined,
   ToolOutlined,
   UserOutlined
@@ -21,6 +22,7 @@ import Funcionarios from './pages/Funcionarios'
 import Produtos from './pages/Produtos'
 import OrdensServico from './pages/OrdensServico'
 import PDV from './pages/PDV'
+import Empresa from './pages/Empresa'
 
 dayjs.locale('pt-br')
 
@@ -32,6 +34,7 @@ const routes = [
   { path: '/cadastros/veiculos', title: 'Veículos', element: <Veiculos /> },
   { path: '/cadastros/funcionarios', title: 'Funcionários', element: <Funcionarios /> },
   { path: '/cadastros/produtos', title: 'Produtos e Serviços', element: <Produtos /> },
+  { path: '/configuracoes/empresa', title: 'Dados da empresa', element: <Empresa /> },
   { path: '/funcionamento/ordens-servico', title: 'Ordem de Serviços', element: <OrdensServico /> },
   { path: '/funcionamento/pdv', title: 'PDV', element: <PDV /> }
 ]
@@ -53,6 +56,12 @@ const menuItems = [
       { key: '/cadastros/funcionarios', label: 'Funcionários', icon: <TeamOutlined /> },
       { key: '/cadastros/produtos', label: 'Produtos e Serviços', icon: <AppstoreOutlined /> }
     ]
+  },
+  {
+    key: 'configuracoes',
+    label: 'Configurações',
+    icon: <SettingOutlined />,
+    children: [{ key: '/configuracoes/empresa', label: 'Empresa', icon: <SettingOutlined /> }]
   },
   {
     key: 'funcionamento',

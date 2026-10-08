@@ -219,7 +219,10 @@ export default function OrdensServico() {
 
   const printOrder = async (record) => {
     const catalogoProdutos = await loadCadastros()
-    const full = await call(window.api.ordensServico.get(record.id))
+    const [full, empresa] = await Promise.all([
+      call(window.api.ordensServico.get(record.id)),
+      call(window.api.empresa.get())
+    ])
     if (!full) return
     const itensImpressao = full.itens.map((item) => ({
       ...item,
@@ -229,6 +232,7 @@ export default function OrdensServico() {
     const subtotaisImpressao = categorySubtotals(itensImpressao)
     setPrintOs({
       ...full,
+      empresa,
       itens: itensImpressao,
       descontos_impressao: descontosImpressao,
       desconto_pecas_aplicado: amountAfterDiscount(
@@ -626,8 +630,18 @@ export default function OrdensServico() {
         <article className="os-print">
           <header className="os-print-header">
             <div>
-              <div className="os-print-brand">Oficina Mecânica</div>
+              <div className="os-print-brand">{printOs.empresa?.nome || 'Oficina Mecânica'}</div>
               <div className="os-print-caption">ORDEM DE SERVIÇO</div>
+              <div className="os-print-company">
+                {[
+                  printOs.empresa?.documento && `CNPJ/CPF: ${printOs.empresa.documento}`,
+                  printOs.empresa?.telefone,
+                  printOs.empresa?.email,
+                  printOs.empresa?.endereco
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </div>
             </div>
             <div className="os-print-number">Nº {printOs.numero}</div>
           </header>

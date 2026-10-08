@@ -46,6 +46,7 @@ export default function PDV() {
   const [historicoAberto, setHistoricoAberto] = useState(false)
   const [historicoLoading, setHistoricoLoading] = useState(false)
   const [cupom, setCupom] = useState(null)
+  const [empresa, setEmpresa] = useState(null)
 
   const load = useCallback(async () => {
     const [p, f] = await Promise.all([
@@ -90,6 +91,12 @@ export default function PDV() {
     setHistoricoLoading(true)
     await loadVendas()
     setHistoricoLoading(false)
+  }
+
+  const abrirCupom = async (venda) => {
+    const dadosEmpresa = await call(window.api.empresa.get())
+    setEmpresa(dadosEmpresa || {})
+    setCupom(venda)
   }
 
   const filtrados = produtos.filter((p) =>
@@ -161,7 +168,8 @@ export default function PDV() {
       load()
       setPaginaHistorico(1)
       const vendasAtualizadas = await loadVendas(1, tamanhoPaginaHistorico)
-      setCupom(vendasAtualizadas?.vendas.find((venda) => venda.id === res.id) || null)
+      const venda = vendasAtualizadas?.vendas.find((item) => item.id === res.id)
+      if (venda) await abrirCupom(venda)
     }
   }
 
@@ -328,7 +336,7 @@ export default function PDV() {
                   icon={<PrinterOutlined />}
                   onClick={() => {
                     setHistoricoAberto(false)
-                    setCupom(venda)
+                    abrirCupom(venda)
                   }}
                 >
                   Cupom
@@ -353,6 +361,33 @@ export default function PDV() {
       >
         {cupom && (
           <div>
+            <Typography.Title level={5}>{empresa?.nome || 'Oficina Mecânica'}</Typography.Title>
+            <Typography.Paragraph>
+              {empresa?.documento && (
+                <>
+                  CNPJ/CPF: {empresa.documento}
+                  <br />
+                </>
+              )}
+              {empresa?.telefone && (
+                <>
+                  Telefone: {empresa.telefone}
+                  <br />
+                </>
+              )}
+              {empresa?.email && (
+                <>
+                  E-mail: {empresa.email}
+                  <br />
+                </>
+              )}
+              {empresa?.endereco && (
+                <>
+                  Endereço: {empresa.endereco}
+                  <br />
+                </>
+              )}
+            </Typography.Paragraph>
             <Typography.Title level={5}>PDV · Venda #{cupom.id}</Typography.Title>
             <Typography.Paragraph>
               Data: {dayjs(cupom.data).format('DD/MM/YYYY HH:mm')}
@@ -383,9 +418,14 @@ export default function PDV() {
       {cupom && (
         <div className="pdv-print">
           <header className="pdv-print-header">
-            <strong>PDV · Cupom de venda</strong>
+            <strong>{empresa?.nome || 'Oficina Mecânica'}</strong>
             <span>#{cupom.id}</span>
           </header>
+          {empresa?.documento && <p>CNPJ/CPF: {empresa.documento}</p>}
+          {empresa?.telefone && <p>Telefone: {empresa.telefone}</p>}
+          {empresa?.email && <p>E-mail: {empresa.email}</p>}
+          {empresa?.endereco && <p>Endereço: {empresa.endereco}</p>}
+          <p>Cupom de venda</p>
           <p>Data: {dayjs(cupom.data).format('DD/MM/YYYY HH:mm')}</p>
           <p>Funcionário: {cupom.funcionario_nome || '-'}</p>
           <p>Pagamento: {rotuloPagamento(cupom.forma_pagamento)}</p>

@@ -34,6 +34,14 @@ CREATE TABLE IF NOT EXISTS funcionarios (
   salario REAL NOT NULL DEFAULT 0,
   ativo INTEGER NOT NULL DEFAULT 1 CHECK (ativo IN (0, 1))
 );
+CREATE TABLE IF NOT EXISTS empresa (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  nome TEXT NOT NULL DEFAULT '',
+  documento TEXT NOT NULL DEFAULT '',
+  telefone TEXT NOT NULL DEFAULT '',
+  email TEXT NOT NULL DEFAULT '',
+  endereco TEXT NOT NULL DEFAULT ''
+);
 CREATE TABLE IF NOT EXISTS produtos (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   descricao TEXT NOT NULL,
@@ -149,6 +157,7 @@ export function getDb() {
     db.pragma('journal_mode = WAL')
     db.pragma('foreign_keys = ON')
     db.exec(SCHEMA)
+    db.exec('INSERT OR IGNORE INTO empresa (id) VALUES (1)')
     const osColumns = new Set(
       db
         .prepare('PRAGMA table_info(ordens_servico)')
