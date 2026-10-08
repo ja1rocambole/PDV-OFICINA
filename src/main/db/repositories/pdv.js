@@ -9,15 +9,14 @@ export const pdvRepository = {
       const linhas = itens.map((i) => {
         const produto = db.prepare('SELECT * FROM produtos WHERE id = ?').get(i.produto_id)
         if (!produto) throw new Error('Produto não encontrado')
+        if (produto.tipo !== 'peca') throw new Error('O PDV permite vender apenas peças')
         const quantidade = Number(i.quantidade) || 0
         if (quantidade <= 0) throw new Error(`Quantidade inválida para ${produto.descricao}`)
-        if (produto.tipo === 'peca') {
-          const baixa = db
-            .prepare('UPDATE produtos SET estoque = estoque - ? WHERE id = ? AND estoque >= ?')
-            .run(quantidade, produto.id, quantidade)
-          if (baixa.changes === 0) {
-            throw new Error(`Estoque insuficiente para ${produto.descricao}`)
-          }
+        const baixa = db
+          .prepare('UPDATE produtos SET estoque = estoque - ? WHERE id = ? AND estoque >= ?')
+          .run(quantidade, produto.id, quantidade)
+        if (baixa.changes === 0) {
+          throw new Error(`Estoque insuficiente para ${produto.descricao}`)
         }
         const valor_unitario = Number(i.valor_unitario ?? produto.preco_venda) || 0
         const valor_total = Math.round(quantidade * valor_unitario * 100) / 100

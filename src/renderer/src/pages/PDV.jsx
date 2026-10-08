@@ -10,7 +10,6 @@ import {
   Select,
   Space,
   Table,
-  Tabs,
   Tag,
   Typography,
   message
@@ -31,7 +30,6 @@ export default function PDV() {
   const [produtos, setProdutos] = useState([])
   const [funcionarios, setFuncionarios] = useState([])
   const [search, setSearch] = useState('')
-  const [tipo, setTipo] = useState('todos')
   const [carrinho, setCarrinho] = useState([])
   const [desconto, setDesconto] = useState(0)
   const [pagamento, setPagamento] = useState('dinheiro')
@@ -43,7 +41,7 @@ export default function PDV() {
       call(window.api.produtos.list('')),
       call(window.api.funcionarios.list(''))
     ])
-    if (p) setProdutos(p)
+    if (p) setProdutos(p.filter((produto) => produto.tipo === 'peca'))
     if (f) {
       const ativos = f.filter((x) => x.ativo)
       setFuncionarios(ativos)
@@ -56,10 +54,8 @@ export default function PDV() {
     load()
   }, [load])
 
-  const filtrados = produtos.filter(
-    (p) =>
-      (tipo === 'todos' || p.tipo === tipo) &&
-      p.descricao.toLowerCase().includes(search.trim().toLowerCase())
+  const filtrados = produtos.filter((p) =>
+    p.descricao.toLowerCase().includes(search.trim().toLowerCase())
   )
 
   const subtotal = useMemo(
@@ -71,7 +67,7 @@ export default function PDV() {
   const adicionar = (p) => {
     const noCarrinho = carrinho.find((i) => i.produto_id === p.id)
     const qtd = (noCarrinho?.quantidade || 0) + 1
-    if (p.tipo === 'peca' && qtd > p.estoque) {
+    if (qtd > p.estoque) {
       message.error(`Estoque insuficiente para ${p.descricao}`)
       return
     }
@@ -83,7 +79,6 @@ export default function PDV() {
         {
           produto_id: p.id,
           descricao: p.descricao,
-          tipo: p.tipo,
           estoque: p.estoque,
           quantidade: 1,
           valor_unitario: p.preco_venda
@@ -95,7 +90,7 @@ export default function PDV() {
   const alterarQtd = (id, v) => {
     const item = carrinho.find((i) => i.produto_id === id)
     const qtd = v || 1
-    if (item.tipo === 'peca' && qtd > item.estoque) {
+    if (qtd > item.estoque) {
       message.error(`Estoque insuficiente para ${item.descricao}`)
       return
     }
@@ -169,25 +164,16 @@ export default function PDV() {
         <Col xs={24} lg={14}>
           <Input.Search
             allowClear
-            placeholder="Buscar produto ou serviço"
+            placeholder="Buscar peça"
             onChange={(e) => setSearch(e.target.value)}
             style={{ marginBottom: 8 }}
-          />
-          <Tabs
-            activeKey={tipo}
-            onChange={setTipo}
-            items={[
-              { key: 'todos', label: 'Todos' },
-              { key: 'peca', label: 'Peças' },
-              { key: 'servico', label: 'Serviços' }
-            ]}
           />
           {filtrados.length === 0 ? (
             <Empty description="Nenhum item encontrado" />
           ) : (
             <Row gutter={[12, 12]}>
               {filtrados.map((p) => {
-                const semEstoque = p.tipo === 'peca' && p.estoque <= 0
+                const semEstoque = p.estoque <= 0
                 return (
                   <Col key={p.id} xs={12} md={8}>
                     <Card
@@ -198,9 +184,7 @@ export default function PDV() {
                     >
                       <Typography.Text strong>{p.descricao}</Typography.Text>
                       <div>{formatCurrency(p.preco_venda)}</div>
-                      <Tag color={p.tipo === 'peca' ? 'blue' : 'purple'}>
-                        {p.tipo === 'peca' ? `Peça · estoque ${p.estoque}` : 'Serviço'}
-                      </Tag>
+                      <Tag color="blue">Estoque {p.estoque}</Tag>
                     </Card>
                   </Col>
                 )
