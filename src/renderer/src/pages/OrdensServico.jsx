@@ -615,10 +615,7 @@ export default function OrdensServico() {
           </Typography.Text>
           <Typography.Text>Subtotal geral: {formatCurrency(subtotal)}</Typography.Text>
           <Typography.Text>
-            Desconto em produtos e peças: -{formatCurrency(descontosAplicados.peca)}
-          </Typography.Text>
-          <Typography.Text>
-            Desconto em serviços: -{formatCurrency(descontosAplicados.servico)}
+            Desconto: {formatCurrency(descontosAplicados.peca + descontosAplicados.servico)}
           </Typography.Text>
           <Typography.Title level={4} style={{ margin: 0 }}>
             Total: {formatCurrency(total)}
