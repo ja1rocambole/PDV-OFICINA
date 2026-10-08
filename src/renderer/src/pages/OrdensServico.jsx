@@ -15,7 +15,13 @@ import {
   Typography,
   message
 } from 'antd'
-import { DeleteOutlined, EditOutlined, PlusOutlined, SwapOutlined } from '@ant-design/icons'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  PrinterOutlined,
+  SwapOutlined
+} from '@ant-design/icons'
 import { Popconfirm } from 'antd'
 import PageHeader from '../components/PageHeader'
 import StatusTag from '../components/StatusTag'
@@ -39,6 +45,7 @@ export default function OrdensServico() {
   const [itens, setItens] = useState([])
   const [desconto, setDesconto] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [printOs, setPrintOs] = useState(null)
   const [form] = Form.useForm()
   const clienteId = Form.useWatch('cliente_id', form)
 
@@ -65,17 +72,24 @@ export default function OrdensServico() {
     if (v) setVeiculos(v)
     if (f) setFuncionarios(f.filter((x) => x.ativo))
     if (p) setProdutos(p)
+    return p || []
   }
 
   const openDrawer = async (record) => {
-    await loadCadastros()
+    const catalogoProdutos = await loadCadastros()
     form.resetFields()
     if (record) {
       const full = await call(window.api.ordensServico.get(record.id))
       if (!full) return
       setEditing(full)
       form.setFieldsValue(full)
-      setItens(full.itens.map((i, idx) => ({ ...i, key: `${i.id}-${idx}` })))
+      setItens(
+        full.itens.map((i, idx) => ({
+          ...i,
+          tipo: catalogoProdutos.find((p) => p.id === i.produto_id)?.tipo || 'peca',
+          key: `${i.id}-${idx}`
+        }))
+      )
       setDesconto(full.desconto || 0)
     } else {
       setEditing(null)
@@ -94,11 +108,12 @@ export default function OrdensServico() {
 
   const veiculosDoCliente = veiculos.filter((v) => v.cliente_id === clienteId)
 
-  const addItem = () =>
+  const addItem = (tipo) =>
     setItens((l) => [
       ...l,
       {
         key: `n-${Date.now()}-${l.length}`,
+        tipo,
         produto_id: null,
         descricao: '',
         quantidade: 1,
@@ -109,13 +124,39 @@ export default function OrdensServico() {
     setItens((l) => l.map((i) => (i.key === key ? { ...i, ...patch } : i)))
   const selectProduto = (key, produtoId) => {
     const p = produtos.find((x) => x.id === produtoId)
-    patchItem(key, { produto_id: produtoId, descricao: p.descricao, valor_unitario: p.preco_venda })
+    patchItem(key, {
+      tipo: p.tipo,
+      produto_id: produtoId,
+      descricao: p.descricao,
+      valor_unitario: p.preco_venda
+    })
   }
+
+  const printOrder = async (record) => {
+    const catalogoProdutos = await loadCadastros()
+    const full = await call(window.api.ordensServico.get(record.id))
+    if (!full) return
+    setPrintOs({
+      ...full,
+      itens: full.itens.map((item) => ({
+        ...item,
+        tipo: catalogoProdutos.find((p) => p.id === item.produto_id)?.tipo || 'peca'
+      }))
+    })
+  }
+
+  useEffect(() => {
+    if (!printOs) return undefined
+    const finishPrint = () => setPrintOs(null)
+    window.addEventListener('afterprint', finishPrint)
+    window.print()
+    return () => window.removeEventListener('afterprint', finishPrint)
+  }, [printOs])
 
   const save = async () => {
     const values = await form.validateFields()
     if (!itens.length || itens.some((i) => !i.produto_id)) {
-      message.error('Adicione ao menos um item e selecione o produto/serviço em todas as linhas')
+      message.error('Adicione ao menos um produto ou serviço e selecione todos os itens')
       return
     }
     setSaving(true)
@@ -161,10 +202,16 @@ export default function OrdensServico() {
     { title: 'Total', dataIndex: 'total', render: formatCurrency },
     {
       title: 'Ações',
-      width: 140,
+      width: 180,
       render: (_, r) => (
         <Space>
           <Button size="small" icon={<EditOutlined />} onClick={() => openDrawer(r)} />
+          <Button
+            size="small"
+            icon={<PrinterOutlined />}
+            title="Imprimir OS em A4"
+            onClick={() => printOrder(r)}
+          />
           <Dropdown
             menu={{
               items: statusOptions.map((o) => ({ key: o.value, label: o.label })),
@@ -187,9 +234,9 @@ export default function OrdensServico() {
     }
   ]
 
-  const itemColumns = [
+  const itemColumns = (tipo) => [
     {
-      title: 'Produto / Serviço',
+      title: tipo === 'peca' ? 'Produto / Peça' : 'Serviço',
       render: (_, i) => (
         <Select
           showSearch={{ optionFilterProp: 'label' }}
@@ -197,10 +244,12 @@ export default function OrdensServico() {
           placeholder="Selecione"
           value={i.produto_id}
           onChange={(v) => selectProduto(i.key, v)}
-          options={produtos.map((p) => ({
-            value: p.id,
-            label: `${p.descricao} (${p.tipo === 'peca' ? 'Peça' : 'Serviço'})`
-          }))}
+          options={produtos
+            .filter((p) => p.tipo === tipo)
+            .map((p) => ({
+              value: p.id,
+              label: p.descricao
+            }))}
         />
       )
     },
@@ -353,15 +402,29 @@ export default function OrdensServico() {
           </Form.Item>
         </Form>
         <Divider>Itens</Divider>
+        <Divider>Produtos e peças</Divider>
         <Table
           rowKey="key"
           size="small"
           pagination={false}
-          columns={itemColumns}
-          dataSource={itens}
+          columns={itemColumns('peca')}
+          dataSource={itens.filter((item) => item.tipo === 'peca')}
           footer={() => (
-            <Button type="dashed" icon={<PlusOutlined />} onClick={addItem} block>
-              Adicionar item
+            <Button type="dashed" icon={<PlusOutlined />} onClick={() => addItem('peca')} block>
+              Adicionar produto ou peça
+            </Button>
+          )}
+        />
+        <Divider>Serviços</Divider>
+        <Table
+          rowKey="key"
+          size="small"
+          pagination={false}
+          columns={itemColumns('servico')}
+          dataSource={itens.filter((item) => item.tipo === 'servico')}
+          footer={() => (
+            <Button type="dashed" icon={<PlusOutlined />} onClick={() => addItem('servico')} block>
+              Adicionar serviço
             </Button>
           )}
         />
@@ -381,6 +444,106 @@ export default function OrdensServico() {
           </Typography.Title>
         </Space>
       </Drawer>
+      {printOs && (
+        <article className="os-print">
+          <header className="os-print-header">
+            <div>
+              <div className="os-print-brand">Oficina Mecânica</div>
+              <div className="os-print-caption">ORDEM DE SERVIÇO</div>
+            </div>
+            <div className="os-print-number">Nº {printOs.numero}</div>
+          </header>
+          <section className="os-print-section">
+            <h2>Dados da ordem</h2>
+            <div className="os-print-grid">
+              <div>
+                <strong>Abertura:</strong> {formatDate(printOs.data_abertura)}
+              </div>
+              <div>
+                <strong>Fechamento:</strong> {formatDate(printOs.data_fechamento)}
+              </div>
+              <div>
+                <strong>Status:</strong>{' '}
+                {statusOptions.find((option) => option.value === printOs.status)?.label ||
+                  printOs.status}
+              </div>
+              <div>
+                <strong>Responsável:</strong> {printOs.funcionario_nome || '-'}
+              </div>
+            </div>
+          </section>
+          <section className="os-print-section">
+            <h2>Cliente e veículo</h2>
+            <div className="os-print-grid">
+              <div>
+                <strong>Cliente:</strong> {printOs.cliente_nome || '-'}
+              </div>
+              <div>
+                <strong>Placa:</strong> {printOs.veiculo_placa || '-'}
+              </div>
+              <div className="os-print-wide">
+                <strong>Veículo:</strong> {printOs.veiculo_modelo || '-'}
+              </div>
+            </div>
+          </section>
+          {['peca', 'servico'].map((tipo) => {
+            const itensDoTipo = printOs.itens.filter((item) => item.tipo === tipo)
+            return (
+              <section className="os-print-section" key={tipo}>
+                <h2>{tipo === 'peca' ? 'Produtos e peças' : 'Serviços'}</h2>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Descrição</th>
+                      <th>Qtd.</th>
+                      <th>Valor unitário</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {itensDoTipo.length ? (
+                      itensDoTipo.map((item) => (
+                        <tr key={item.id}>
+                          <td>{item.descricao}</td>
+                          <td>{item.quantidade}</td>
+                          <td>{formatCurrency(item.valor_unitario)}</td>
+                          <td>{formatCurrency(item.valor_total)}</td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4">Nenhum item</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </section>
+            )
+          })}
+          {printOs.observacoes && (
+            <section className="os-print-section">
+              <h2>Observações</h2>
+              <p>{printOs.observacoes}</p>
+            </section>
+          )}
+          <section className="os-print-totals">
+            <div>
+              <strong>Subtotal:</strong>{' '}
+              {formatCurrency(printOs.itens.reduce((sum, item) => sum + item.valor_total, 0))}
+            </div>
+            <div>
+              <strong>Desconto:</strong> {formatCurrency(printOs.desconto)}
+            </div>
+            <div className="os-print-total">
+              <strong>Total:</strong> {formatCurrency(printOs.total)}
+            </div>
+          </section>
+          <footer className="os-print-signatures">
+            <div>Assinatura do cliente</div>
+            <div>Assinatura do responsável</div>
+          </footer>
+        </article>
+      )}
     </>
   )
 }
